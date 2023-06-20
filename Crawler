@@ -1,0 +1,55 @@
+import requests
+from bs4 import BeautifulSoup
+import schedule
+import time
+import re
+
+def crawl_game_data():
+    url = 'https://store.steampowered.com/search/?filter=topsellers&os=win'
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        game_data = []
+
+        game_elements = soup.find_all('a', class_='search_result_row')
+        for game_element in game_elements:
+            game_title = game_element.find('span', class_='title').text.strip()
+            game_price_element = game_element.find('div', class_='search_price')
+            game_reviews_element = game_element.find('span', class_='search_review_summary')
+            
+            if game_price_element is not None:
+                game_price = game_price_element.text.strip()
+            else:
+                game_price = "Price not available"
+            
+            if game_reviews_element is not None:
+                game_reviews = game_reviews_element['data-tooltip-html']
+                game_reviews = re.sub('<br>', ' ', game_reviews)
+            else:
+                game_reviews = "No reviews available"
+            
+            game_data.append(f"Title: {game_title} | Price: {game_price} | Reviews: {game_reviews}")
+
+        with open('data.txt', 'w') as file:
+            file.write('\n'.join(game_data))
+            
+    else:
+        print('Error:', response.status_code)
+
+def update_game_data():
+    print("Updating game data...")
+    crawl_game_data()
+
+# Create the data.txt file if it doesn't exist
+with open('data.txt', 'a', encoding='utf-8') as file:
+    pass
+
+update_game_data()
+
+schedule.every(15).minutes.do(update_game_data)
+
+while True:
+    schedule.run_pending()
+    time.sleep(1)
